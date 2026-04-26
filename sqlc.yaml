@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "sql/schema.sql"
+    queries: "sql/query.sql"
+    gen:
+      go:
+        package: "repository"
+        out: "internal/infrastructure/repository"
+        sql_package: "pgx/v5"
+        emit_interface: false
+        json_tags_case_style: "camel"
+        emit_exact_table_names: false
+        emit_empty_slices: true
