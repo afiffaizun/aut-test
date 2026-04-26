@@ -1,0 +1,45 @@
+Auth Service (Golang)
+Layanan autentikasi dan otorisasi berbasis mikroservice yang dibangun menggunakan Golang. Layanan ini menangani registrasi pengguna, login, manajemen sesi (JWT & Refresh Token), dan perlindungan endpoint menggunakan prinsip Secure by Design.
+🛡️ Fitur Keamanan Utama
+Sebagai layanan yang berfokus pada keamanan, implementasi ini mencakup:
+Password Hashing: Menggunakan Argon2id (standar emas saat ini) untuk resistensi terhadap serangan brute-force dan side-channel.
+Token Management:
+Access Token: JWT berumur pendek (15 menit).
+Refresh Token: Opaque token berumur panjang (7 hari) dengan mekanisme rotating refresh token untuk mendeteksi pencurian token.
+Rate Limiting: Proteksi terhadap endpoint sensitif (/login, /register) untuk mencegah Brute Force Attack.
+SQL Injection Prevention: Menggunakan SQLC untuk menghasilkan kode Go yang type-safe dari query SQL murni (parameterized queries otomatis).
+Secure Headers: Implementasi header keamanan HTTP (HSTS, X-Content-Type-Options, dll).
+Input Validation: Validasi ketat pada semua input pengguna menggunakan go-playground/validator.
+🏗️ Arsitektur & Tech Stack
+Proyek ini mengikuti prinsip Clean Architecture untuk memisahkan concern bisnis, infrastruktur, dan delivery layer.
+Language: Golang
+Web Framework: Gin (High performance HTTP web framework)
+Database: PostgreSQL
+Database Access: SQLC (Compile-time safe SQL queries)
+Cache/Session Store: Redis (Untuk blacklist token atau caching session)
+Configuration: Viper / Godotenv
+Documentation: Swagger/OpenAPI (opsional)
+📂 Struktur Direktori
+
+auth-service/
+├── cmd/
+│   └── server/
+│       └── main.go          # Entry point aplikasi
+├── internal/
+│   ├── config/              # Manajemen konfigurasi (.env)
+│   ├── domain/              # Definisi Entity & Interface (Kontrak)
+│   ├── usecase/             # Logika Bisnis (Business Logic)
+│   ├── infrastructure/      # Implementasi Teknis
+│   │   ├── database/        # Koneksi PostgreSQL
+│   │   ├── redis/           # Koneksi Redis
+│   │   └── repository/      # Implementasi Repository (SQLC)
+│   ├── delivery/            # Layer HTTP
+│   │   ├── handler/         # Controller/Handler
+│   │   └── middleware/      # Middleware (Auth, Rate Limit, Logger)
+│   └── pkg/                 # Utility Helper (Hashing, JWT, Response)
+├── sql/                     # Schema & Query SQL untuk SQLC
+├── docs/                    # Dokumentasi API
+├── .env.example
+├── go.mod
+├── go.sum
+└── Dockerfile
