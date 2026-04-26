@@ -27,7 +27,7 @@ func Connect(ctx context.Context, addr, password string, db int) (*Redis, error)
 }
 
 func (r *Redis) Close() error {
-	return r.Close()
+	return r.Client.Close()
 }
 
 type BlacklistService struct {
