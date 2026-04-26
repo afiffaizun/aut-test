@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 
-	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -58,45 +59,83 @@ type RateLimitConfig struct {
 }
 
 func Load(configPath string) (*Config, error) {
-	viper.SetConfigFile(configPath)
-	viper.SetConfigType("env")
+	if err := godotenv.Load(configPath); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to load config file: %w", err)
+	}
 
-	viper.SetDefault("SERVER_PORT", "8080")
-	viper.SetDefault("SERVER_HOST", "0.0.0.0")
-	viper.SetDefault("DB_HOST", "localhost")
-	viper.SetDefault("DB_PORT", "5432")
-	viper.SetDefault("DB_USER", "postgres")
-	viper.SetDefault("DB_PASSWORD", "postgres")
-	viper.SetDefault("DB_NAME", "auth_service")
-	viper.SetDefault("DB_SSLMODE", "disable")
-	viper.SetDefault("REDIS_HOST", "localhost")
-	viper.SetDefault("REDIS_PORT", "6379")
-	viper.SetDefault("REDIS_PASSWORD", "")
-	viper.SetDefault("REDIS_DB", 0)
-	viper.SetDefault("JWT_SECRET", "change-this-secret-in-production")
-	viper.SetDefault("JWT_ACCESS_TOKEN_EXPIRY", "15m")
-	viper.SetDefault("JWT_REFRESH_TOKEN_EXPIRY", "168h")
-	viper.SetDefault("ARGON2_MEMORY", 65536)
-	viper.SetDefault("ARGON2_ITERATIONS", 3)
-	viper.SetDefault("ARGON2_PARALLELISM", 4)
-	viper.SetDefault("ARGON2_SALTLENGTH", 16)
-	viper.SetDefault("ARGON2_KEYLENGTH", 32)
-	viper.SetDefault("RATE_LIMIT_ENABLED", true)
-	viper.SetDefault("RATE_LIMIT_REQUESTS", 10)
-	viper.SetDefault("RATE_LIMIT_WINDOW", "60s")
-
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
+	getOrDefault := func(key, defaultValue string) string {
+		if val := os.Getenv(key); val != "" {
+			return val
 		}
+		return defaultValue
 	}
 
-	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	getOrDefaultDuration := func(key, defaultValue string) time.Duration {
+		if val := os.Getenv(key); val != "" {
+			d, err := time.ParseDuration(val)
+			if err == nil {
+				return d
+			}
+		}
+		d, _ := time.ParseDuration(defaultValue)
+		return d
 	}
 
-	return &cfg, nil
+	getOrDefaultBool := func(key string, defaultValue bool) bool {
+		if val := os.Getenv(key); val != "" {
+			return val == "true"
+		}
+		return defaultValue
+	}
+
+	getOrDefaultInt := func(key string, defaultValue int) int {
+		if val := os.Getenv(key); val != "" {
+			var n int
+			fmt.Sscanf(val, "%d", &n)
+			return n
+		}
+		return defaultValue
+	}
+
+	cfg := &Config{
+		Server: ServerConfig{
+			Port: getOrDefault("SERVER_PORT", "8080"),
+			Host: getOrDefault("SERVER_HOST", "0.0.0.0"),
+		},
+		Database: DatabaseConfig{
+			Host:     getOrDefault("DB_HOST", "localhost"),
+			Port:     getOrDefault("DB_PORT", "5432"),
+			User:     getOrDefault("DB_USER", "postgres"),
+			Password: getOrDefault("DB_PASSWORD", "postgres"),
+			Name:     getOrDefault("DB_NAME", "auth_service"),
+			SSLMode:  getOrDefault("DB_SSLMODE", "disable"),
+		},
+		Redis: RedisConfig{
+			Host:     getOrDefault("REDIS_HOST", "localhost"),
+			Port:     getOrDefault("REDIS_PORT", "6379"),
+			Password: getOrDefault("REDIS_PASSWORD", ""),
+			DB:       getOrDefaultInt("REDIS_DB", 0),
+		},
+		JWT: JWTConfig{
+			Secret:             getOrDefault("JWT_SECRET", "change-this-secret-in-production"),
+			AccessTokenExpiry:  getOrDefaultDuration("JWT_ACCESS_TOKEN_EXPIRY", "15m"),
+			RefreshTokenExpiry: getOrDefaultDuration("JWT_REFRESH_TOKEN_EXPIRY", "168h"),
+		},
+		Argon2: Argon2Config{
+			Memory:      uint32(getOrDefaultInt("ARGON2_MEMORY", 65536)),
+			Iterations:  uint32(getOrDefaultInt("ARGON2_ITERATIONS", 3)),
+			Parallelism: uint8(getOrDefaultInt("ARGON2_PARALLELISM", 4)),
+			SaltLength:  uint32(getOrDefaultInt("ARGON2_SALTLENGTH", 16)),
+			KeyLength:   uint32(getOrDefaultInt("ARGON2_KEYLENGTH", 32)),
+		},
+		RateLimit: RateLimitConfig{
+			Enabled:  getOrDefaultBool("RATE_LIMIT_ENABLED", true),
+			Requests: getOrDefaultInt("RATE_LIMIT_REQUESTS", 10),
+			Window:   getOrDefaultDuration("RATE_LIMIT_WINDOW", "60s"),
+		},
+	}
+
+	return cfg, nil
 }
 
 func (d *DatabaseConfig) DSN() string {
