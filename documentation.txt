@@ -1,0 +1,229 @@
+# Auth Service Documentation
+
+## Project Overview
+Authentication microservice built with Golang using Clean Architecture. Handles user registration, login, JWT & refresh token management, and endpoint protection.
+
+## Technology Stack
+- **Language**: Golang
+- **Web Framework**: Gin
+- **Database**: PostgreSQL (with SQLC for type-safe queries)
+- **Cache/Session Store**: Redis
+- **Configuration**: godotenv
+
+---
+
+## Stage 1: Project Setup ✅ COMPLETED
+**Commit**: `init: add project structure and configuration management`
+
+### Files Created
+```
+auth-service/
+├── cmd/server/main.go              # Entry point
+├── internal/config/config.go       # Configuration management
+├── .env                         # Environment variables
+├── .env.example                  # Template for env vars
+├── .gitignore                    # Git ignore rules
+├── go.mod                       # Go module
+└── go.sum                       # Go dependencies
+```
+
+### Configuration Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| SERVER_PORT | Server port | 8080 |
+| SERVER_HOST | Server host | 0.0.0.0 |
+| DB_HOST | PostgreSQL host | localhost |
+| DB_PORT | PostgreSQL port | 5432 |
+| DB_USER | PostgreSQL user | postgres |
+| DB_PASSWORD | PostgreSQL password | postgres |
+| DB_NAME | Database name | auth_service |
+| REDIS_HOST | Redis host | localhost |
+| REDIS_PORT | Redis port | 6379 |
+| JWT_SECRET | JWT signing secret | - |
+| JWT_ACCESS_TOKEN_EXPIRY | Access token lifetime | 15m |
+| JWT_REFRESH_TOKEN_EXPIRY | Refresh token lifetime | 168h |
+
+### Testing
+```bash
+go build ./...
+go run cmd/server/main.go
+```
+
+---
+
+## Stage 2: Domain Layer ✅ COMPLETED
+**Commit**: `feat: add domain entities and repository interfaces`
+
+### Files Created
+```
+internal/domain/
+├── user.go         # User entity and DTOs
+├── token.go        # Token entities (AccessToken, RefreshToken, TokenPair)
+├── session.go      # Session entity
+├── repository.go  # Repository interfaces (contracts)
+└── errors.go      # Domain-specific errors
+```
+
+### Entities
+- **User**: id, email, password_hash, created_at, updated_at
+- **AccessToken**: user_id, token_id, expires_at
+- **RefreshToken**: id, user_id, token_hash, expires_at, created_at
+- **Session**: id, user_id, refresh_token_id, user_agent, ip_address, created_at, expires_at, is_revoked
+
+### Repository Interfaces
+- **UserRepository**: Create, GetByEmail, GetByID
+- **TokenRepository**: StoreRefreshToken, GetRefreshToken, RevokeRefreshToken, RevokeAllUserTokens
+- **SessionRepository**: Create, GetByID, Revoke, RevokeAllForUser
+
+### Domain Errors
+- ErrUserNotFound
+- ErrInvalidCredentials
+- ErrEmailExists
+- ErrInvalidToken
+- ErrTokenExpired
+- ErrTokenRevoked
+
+---
+
+## Stage 3: Database Infrastructure ✅ COMPLETED
+**Commit**: `feat: add PostgreSQL connection and SQLC queries`
+**Commit**: `fix: use godotenv for config loading`
+
+### Files Created
+```
+sql/
+├── schema.sql     # Database schema
+├── query.sql     # SQL queries
+└── sqlc.yaml     # SQLC configuration
+
+internal/infrastructure/database/
+└── postgres.go   # PostgreSQL connection pool
+```
+
+### Database Schema
+- **users**: id (UUID), email (CITEXT), password_hash, created_at, updated_at
+- **refresh_tokens**: id (UUID), user_id, token_hash, expires_at, created_at, is_revoked
+- **sessions**: id (UUID), user_id, refresh_token_id, user_agent, ip_address, created_at, expires_at, is_revoked
+
+### Indexes
+- idx_users_email
+- idx_refresh_tokens_user_id
+- idx_refresh_tokens_id
+- idx_sessions_user_id
+- idx_sessions_refresh_token_id
+
+### Testing
+Prerequisites: PostgreSQL running
+```bash
+# Create database
+docker exec -i exporthub_postgres psql -U exporthub -d exporthub_db -c "CREATE DATABASE auth_service;"
+
+# Apply schema
+docker exec -i exporthub_postgres psql -U exporthub -d auth_service < sql/schema.sql
+
+# Test connection
+go run cmd/server/main.go
+# Expected: "Database connected successfully!"
+```
+
+---
+
+## Stage 4: Redis Infrastructure (PENDING)
+
+### Planned Files
+```
+internal/infrastructure/redis/
+└── redis.go   # Redis client connection
+```
+
+### Features
+- Token blacklist storage
+- Session caching
+- Rate limiting data
+
+---
+
+## Stage 5: Security Utilities (PENDING)
+
+### Planned Files
+```
+internal/pkg/
+├── hashing/hashing.go     # Argon2id password hashing
+├── jwt/jwt.go            # JWT token handling
+└── response/response.go  # HTTP response helpers
+```
+
+---
+
+## Stage 6: Use Cases (PENDING)
+
+### Planned Files
+```
+internal/usecase/
+├── register.go   # User registration
+├── login.go    # User login
+├── refresh.go  # Token refresh
+├── logout.go   # User logout
+└── validate.go # Token validation
+```
+
+---
+
+## Stage 7: Middleware (PENDING)
+
+### Planned Files
+```
+internal/delivery/middleware/
+├── auth.go       # Authentication middleware
+├── ratelimit.go # Rate limiting
+├── secure.go    # Secure headers (HSTS, etc.)
+└── logger.go    # Request logging
+```
+
+---
+
+## Stage 8: HTTP Handlers (PENDING)
+
+### Planned Files
+```
+internal/delivery/handler/
+└── auth.go   # HTTP handlers for auth endpoints
+```
+
+### Endpoints
+- POST /register
+- POST /login
+- POST /logout
+- POST /refresh
+- GET /validate (protected)
+
+---
+
+## Stage 9: Entry Point (PENDING)
+
+### Final main.go
+Wiring all dependencies together and starting the HTTP server.
+
+---
+
+## Testing Summary
+
+| Stage | Build | Run | Database |
+|-------|-------|-----|----------|
+| 1 | ✅ | ✅ | N/A |
+| 2 | ✅ | ✅ | N/A |
+| 3 | ✅ | ✅ | ✅ |
+| 4 | - | - | - |
+| 5-9 | - | - | - |
+
+---
+
+## API Endpoints (Future)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /api/v1/auth/register | Register new user |
+| POST | /api/v1/auth/login | Login user |
+| POST | /api/v1/auth/logout | Logout user |
+| POST | /api/v1/auth/refresh | Refresh access token |
+| GET | /api/v1/auth/me | Get current user |
