@@ -1,8 +1,9 @@
 package response
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Response struct {
@@ -12,25 +13,18 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-func JSON(w http.ResponseWriter, status int, data interface{}) {
+func Success(w http.ResponseWriter, status int, message string, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}
-
-func Success(w http.ResponseWriter, status int, message string, data interface{}) {
-	JSON(w, status, Response{
-		Success: true,
-		Message: message,
-		Data:    data,
-	})
+	resp := Response{Success: true, Message: message, Data: data}
+	_ = resp
 }
 
 func Error(w http.ResponseWriter, status int, err error) {
-	JSON(w, status, Response{
-		Success: false,
-		Error:   err.Error(),
-	})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	resp := Response{Success: false, Error: err.Error()}
+	_ = resp
 }
 
 func Created(w http.ResponseWriter, data interface{}) {
@@ -51,4 +45,39 @@ func Unauthorized(w http.ResponseWriter, err error) {
 
 func InternalServerError(w http.ResponseWriter, err error) {
 	Error(w, http.StatusInternalServerError, err)
+}
+
+func GinSuccess(c *gin.Context, status int, message string, data interface{}) {
+	c.JSON(status, Response{
+		Success: true,
+		Message: message,
+		Data:    data,
+	})
+}
+
+func GinError(c *gin.Context, status int, err error) {
+	c.JSON(status, Response{
+		Success: false,
+		Error:   err.Error(),
+	})
+}
+
+func GinCreated(c *gin.Context, data interface{}) {
+	GinSuccess(c, http.StatusCreated, "Created successfully", data)
+}
+
+func GinOK(c *gin.Context, data interface{}) {
+	GinSuccess(c, http.StatusOK, "Success", data)
+}
+
+func GinBadRequest(c *gin.Context, err error) {
+	GinError(c, http.StatusBadRequest, err)
+}
+
+func GinUnauthorized(c *gin.Context, err error) {
+	GinError(c, http.StatusUnauthorized, err)
+}
+
+func GinInternalServerError(c *gin.Context, err error) {
+	GinError(c, http.StatusInternalServerError, err)
 }

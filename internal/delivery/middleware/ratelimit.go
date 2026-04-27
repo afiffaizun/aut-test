@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"auth-service/internal/pkg/response"
 )
 
@@ -30,17 +32,18 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 	return rl
 }
 
-func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := getClientIP(r)
+func (rl *RateLimiter) Limit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := getClientIP(c.Request)
 
 		if !rl.allow(ip) {
-			response.Error(w, http.StatusTooManyRequests, RateLimitExceeded)
+			response.Error(c.Writer, http.StatusTooManyRequests, RateLimitExceeded)
+			c.Abort()
 			return
 		}
 
-		next.ServeHTTP(w, r)
-	})
+		c.Next()
+	}
 }
 
 func (rl *RateLimiter) allow(key string) bool {

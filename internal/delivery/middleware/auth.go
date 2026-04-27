@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 
 	"auth-service/internal/domain"
 	"auth-service/internal/infrastructure/redis"
@@ -22,43 +23,46 @@ func NewAuthMiddleware(blacklist *redis.BlacklistService, jwtManager *jwt.JWT) *
 	}
 }
 
-func (m *AuthMiddleware) Authenticate() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				response.Unauthorized(w, domain.ErrInvalidToken)
-				return
-			}
+func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			response.Unauthorized(c.Writer, domain.ErrInvalidToken)
+			c.Abort()
+			return
+		}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-				response.Unauthorized(w, domain.ErrInvalidToken)
-				return
-			}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			response.Unauthorized(c.Writer, domain.ErrInvalidToken)
+			c.Abort()
+			return
+		}
 
-			token := parts[1]
-			claims, err := m.jwtManager.ValidateAccessToken(token)
-			if err != nil {
-				response.Unauthorized(w, err)
-				return
-			}
+		token := parts[1]
+		claims, err := m.jwtManager.ValidateAccessToken(token)
+		if err != nil {
+			response.Unauthorized(c.Writer, err)
+			c.Abort()
+			return
+		}
 
-			isBlacklisted, err := m.blacklist.IsBlacklisted(r.Context(), claims.TokenID)
-			if err != nil {
-				response.InternalServerError(w, err)
-				return
-			}
+		isBlacklisted, err := m.blacklist.IsBlacklisted(c.Request.Context(), claims.TokenID)
+		if err != nil {
+			response.InternalServerError(c.Writer, err)
+			c.Abort()
+			return
+		}
 
-			if isBlacklisted {
-				response.Unauthorized(w, domain.ErrTokenRevoked)
-				return
-			}
+		if isBlacklisted {
+			response.Unauthorized(c.Writer, domain.ErrTokenRevoked)
+			c.Abort()
+			return
+		}
 
-			r.Header.Set("X-User-ID", claims.UserID)
-			r.Header.Set("X-Token-ID", claims.TokenID)
+		c.Header("X-User-ID", claims.UserID)
+		c.Header("X-Token-ID", claims.TokenID)
 
-			next.ServeHTTP(w, r)
-		})
+		c.Next()
 	}
 }
