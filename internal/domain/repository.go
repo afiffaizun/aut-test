@@ -9,7 +9,7 @@ type UserRepository interface {
 }
 
 type TokenRepository interface {
-	StoreRefreshToken(ctx context.Context, token *RefreshToken) error
+	StoreRefreshToken(ctx context.Context, token *RefreshToken) (string, error)
 	GetRefreshToken(ctx context.Context, tokenID string) (*RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, tokenID string) error
 	RevokeAllUserTokens(ctx context.Context, userID string) error
