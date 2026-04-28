@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+documentation.txt
+prd.txt
+
+# GitHub
+.github/
+
+# CI/CD
+docker-compose.yaml
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+auth-service
+*.exe
+*.test
+*.out
+
+# Test coverage
+coverage.out
+*.prof
+
+# Vendor (if using)
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLC generated (will be regenerated in build)
+internal/infrastructure/repository/*.sql.go

@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  auth-service:
+    image: ghcr.io/mafif/auth-test:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SERVER_HOST=0.0.0.0
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-exporthub}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-auth_service}
+      - DB_SSLMODE=disable
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=0
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_TOKEN_EXPIRY=15m
+      - JWT_REFRESH_TOKEN_EXPIRY=168h
+      - ARGON2_MEMORY=65536
+      - ARGON2_ITERATIONS=3
+      - ARGON2_PARALLELISM=4
+      - ARGON2_SALTLENGTH=16
+      - ARGON2_KEYLENGTH=32
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_REQUESTS=10
+      - RATE_LIMIT_WINDOW=60s
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - auth-network
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-exporthub}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-auth_service}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - auth-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - auth-network
+
+volumes:
+  postgres_data:
+
+networks:
+  auth-network:
+    driver: bridge

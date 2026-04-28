@@ -206,6 +206,79 @@ Wiring all dependencies together and starting the HTTP server.
 
 ---
 
+## CI/CD Pipeline
+
+### Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `ci.yml` | Push/PR to main | Build, Test, Lint, Security Scan |
+| `deploy.yml` | Manual dispatch | Build Docker image & Deploy |
+
+### CI Pipeline (ci.yml)
+
+**Jobs:**
+
+| Job | Description |
+|-----|-------------|
+| lint | golangci-lint, go vet |
+| test | go test -v -race ./... |
+| build | Build binary |
+| docker-build | Docker build + Trivy vulnerability scan |
+
+### Deploy Pipeline (deploy.yml)
+
+**Manual Inputs:**
+
+| Input | Type | Description |
+|-------|------|-------------|
+| environment | choice | staging or production |
+| skip_migrations | boolean | Skip database migrations |
+
+**Jobs:**
+
+| Job | Description |
+|-----|-------------|
+| build-push | Build & push Docker image to GHCR |
+| deploy | Pull image & restart container |
+| migrations | Generate SQLC & apply schema |
+
+### GitHub Actions Required Secrets
+
+| Secret | Description |
+|--------|-------------|
+| GITHUB_TOKEN | Auto-provided by GitHub |
+| (Optional) Registry credentials | For private container registry |
+
+### Deployment
+
+```bash
+# Manual trigger via GitHub CLI
+gh workflow run deploy.yml -f environment=staging
+
+# Or via GitHub UI
+# 1. Go to Actions > Deploy
+# 2. Click "Run workflow"
+# 3. Select environment
+```
+
+### Docker Build
+
+```bash
+# Build locally
+docker build -t auth-service:latest .
+
+# Run with docker-compose
+docker compose -f production-compose.yaml up -d
+
+# Or manually
+docker run -d -p 8080:8080 \
+  --env-file .env \
+  ghcr.io/mafif/auth-test:latest
+```
+
+---
+
 ## Testing Summary
 
 | Stage | Build | Run | Database |
@@ -213,12 +286,12 @@ Wiring all dependencies together and starting the HTTP server.
 | 1 | ✅ | ✅ | N/A |
 | 2 | ✅ | ✅ | N/A |
 | 3 | ✅ | ✅ | ✅ |
-| 4 | - | - | - |
-| 5-9 | - | - | - |
+| 4 | ✅ | ✅ | ✅ |
+| 5-9 | ✅ | ✅ | ✅ |
 
 ---
 
-## API Endpoints (Future)
+## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -227,3 +300,4 @@ Wiring all dependencies together and starting the HTTP server.
 | POST | /api/v1/auth/logout | Logout user |
 | POST | /api/v1/auth/refresh | Refresh access token |
 | GET | /api/v1/auth/me | Get current user |
+| GET | /health | Health check |
