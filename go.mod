@@ -1,6 +1,6 @@
 module auth-service
 
-go 1.25.6
+go 1.24
 
 require (
 	github.com/gin-gonic/gin v1.12.0

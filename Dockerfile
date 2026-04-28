@@ -1,33 +1,27 @@
-# Stage 1: Builder
-FROM golang:1.24.4 AS builder
+# Stage 1: Builder - build locally and copy binary
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
-COPY go.mod go.sum ./
-RUN go mod download
+ENV GOTOOLCHAIN=auto
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o auth-service ./cmd/server
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o auth-service ./cmd/server
 
 # Stage 2: Runtime
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy binary only
 COPY --from=builder /app/auth-service .
 
-# Optional: Add health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+RUN useradd -m -u 1000 appuser && chown appuser:appuser /app
 
-# Run as non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 EXPOSE 8080
