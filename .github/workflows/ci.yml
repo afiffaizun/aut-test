@@ -17,7 +17,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
+          gotoolchain: auto
 
       - name: Download dependencies
         run: go mod download
@@ -28,7 +29,7 @@ jobs:
           version: latest
 
       - name: Run go vet
-        run: go vet ./...
+        run: GOTOOLCHAIN=auto go vet ./...
 
   test:
     name: Test
@@ -40,7 +41,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
+          gotoolchain: auto
 
       - name: Download dependencies
         run: go mod download
@@ -52,7 +54,7 @@ jobs:
         continue-on-error: true
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: GOTOOLCHAIN=auto go test -v -race -coverprofile=coverage.out ./...
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -71,10 +73,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
+          gotoolchain: auto
 
       - name: Build binary
-        run: go build -o auth-service ./cmd/server
+        run: GOTOOLCHAIN=auto go build -o auth-service ./cmd/server
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
